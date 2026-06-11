@@ -1,5 +1,8 @@
+'use client'
+
 import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '../context/authUse'
 
 const navItems = [
@@ -43,11 +46,12 @@ const navItems = [
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { logout, username } = useAuth()
-  const navigate = useNavigate()
+  const pathname = usePathname()
+  const router = useRouter()
 
   const handleLogout = () => {
     logout()
-    navigate('/login')
+    router.push('/login')
   }
 
   return (
@@ -82,23 +86,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         {/* Nav Items */}
         <nav className="flex-grow flex flex-col gap-1">
           {navItems.map((item) => (
-            <NavLink
+            <Link
               key={item.path}
-              to={item.path}
+              href={item.path}
               onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 py-3 px-6 font-medium text-sm transition-all duration-200
-                ${isActive
+              className={`flex items-center gap-3 py-3 px-6 font-medium text-sm transition-all duration-200
+                ${pathname === item.path
                   ? 'text-sky-600 border-l-4 border-sky-600 bg-sky-50'
                   : 'text-slate-500 hover:bg-slate-100 border-l-4 border-transparent'
-                }`
-              }
+                }`}
             >
               <span className="material-symbols-outlined text-[20px]">
                 {item.icon}
               </span>
               {item.label}
-            </NavLink>
+            </Link>
           ))}
         </nav>
 

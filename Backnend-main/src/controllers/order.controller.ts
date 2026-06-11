@@ -172,14 +172,25 @@ export const collectOrder = async (req: Request, res: Response): Promise<void> =
       return
     }
 
+    let finalUpiAmount = upiAmount || 0
+    let finalCashAmount = cashAmount || 0
+
+    if (paymentMethod === 'upi') {
+      finalUpiAmount = total
+      finalCashAmount = 0
+    } else if (paymentMethod === 'cash_paid') {
+      finalCashAmount = total
+      finalUpiAmount = 0
+    }
+
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       {
         status: 'completed',
         paymentMethod,
         total,
-        upiAmount:   upiAmount   || 0,
-        cashAmount:  cashAmount  || 0,
+        upiAmount:   finalUpiAmount,
+        cashAmount:  finalCashAmount,
         completedAt: new Date(),
       },
       { new: true }

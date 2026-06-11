@@ -1,14 +1,19 @@
-import { useState, } from 'react'
+'use client'
+
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AuthContext } from './AuthContext'
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem('token')
-  )
-  const [username, setUsername] = useState<string | null>(
-    localStorage.getItem('username')
-  )
+  const [token, setToken] = useState<string | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    setToken(localStorage.getItem('token'))
+    setUsername(localStorage.getItem('username'))
+    setIsLoading(false)
+  }, [])
 
   const login = (newToken: string, newUsername: string) => {
     localStorage.setItem('token', newToken)
@@ -31,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       login,
       logout,
       isAuthenticated: !!token,
+      isLoading,
     }}>
       {children}
     </AuthContext.Provider>

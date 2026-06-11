@@ -1,3 +1,5 @@
+'use client'
+
 import type { Order } from '../types/types'
 
 interface PrintBillProps {

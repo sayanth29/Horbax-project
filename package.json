@@ -1,0 +1,13 @@
+{
+  "name": "horbax-project",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,yellow\" \"npm run dev --prefix FRONTEND-main\" \"npm run dev --prefix Backnend-main\"",
+    "dev:frontend": "npm run dev --prefix FRONTEND-main",
+    "dev:backend": "npm run dev --prefix Backnend-main"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
+
