@@ -14,7 +14,7 @@ const router = express.Router();
 
 //all routes protected
 
-router.get('/',protect, getAllOrders);       // ✅ was '/getALL'
+router.get('/',protect, getAllOrders);       // was '/getALL'
 router.get('/pending',protect, getPendingOrders);   // ✅ was '/pendig' (typo)
 router.get('/:id',protect, getOrderById);       // ✅ was '/ordersID' (missing :id)
 router.post('/',protect, createOrder);        // ✅ was '/creating'

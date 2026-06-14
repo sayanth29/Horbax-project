@@ -264,7 +264,9 @@ const Collection = () => {
                             <td className="px-5 py-4 font-extrabold text-primary">#{order.orderId}</td>
                             <td className="px-5 py-4">
                               <p className="font-semibold text-on-surface">{order.customerName}</p>
-                              <p className="text-xs text-outline">{order.phone}</p>
+                              <p className="text-xs text-outline">
+                                {order.phone.startsWith('NO_PHONE_') ? 'N/A' : order.phone}
+                              </p>
                             </td>
                             <td className="px-5 py-4 font-bold text-on-surface">₹{order.total}</td>
                             <td className="px-5 py-4">

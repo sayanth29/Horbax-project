@@ -30,23 +30,64 @@ const History = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [printOrder, setPrintOrder] = useState<Order | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(20)
+
+  // Clear Due Modal states
+  const [dueOrder, setDueOrder] = useState<Order | null>(null)
+  const [clearMethod, setClearMethod] = useState<'upi' | 'cash'>('cash')
+  const [clearAmount, setClearAmount] = useState(0)
 
   const toggleExpand = (id: string) =>
     setExpandedId(prev => (prev === id ? null : id))
 
+  // Reset pagination when search or status filter changes
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const { data } = await api.get<Order[]>('/orders')
-        setOrders(data)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+    setVisibleCount(20)
+  }, [search, statusFilter])
+
+  const fetchOrders = async () => {
+    try {
+      const { data } = await api.get<Order[]>('/orders')
+      setOrders(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchOrders()
   }, [])
+
+  const handleClearDueClick = (order: Order) => {
+    setDueOrder(order)
+    setClearMethod('cash')
+    setClearAmount(order.dueAmount || 0)
+  }
+
+  const confirmClearDue = async () => {
+    if (!dueOrder) return
+    try {
+      const currentDue = dueOrder.dueAmount || 0
+      const newUpi = clearMethod === 'upi' ? (dueOrder.upiAmount || 0) + clearAmount : (dueOrder.upiAmount || 0)
+      const newCash = clearMethod === 'cash' ? (dueOrder.cashAmount || 0) + clearAmount : (dueOrder.cashAmount || 0)
+      const remainingDue = Math.max(0, currentDue - clearAmount)
+      const newPaymentMethod = (newUpi > 0 && newCash > 0) ? 'upi_cash' : (newUpi > 0 ? 'upi' : 'cash_paid')
+
+      await api.patch(`/orders/${dueOrder._id}`, {
+        upiAmount: newUpi,
+        cashAmount: newCash,
+        dueAmount: remainingDue,
+        paymentMethod: newPaymentMethod,
+      })
+
+      setDueOrder(null)
+      fetchOrders()
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   // Filter orders
   const filtered = orders.filter(o => {
@@ -55,10 +96,19 @@ const History = () => {
       o.phone.includes(search) ||
       o.orderId.toLowerCase().includes(search.toLowerCase())
 
-    const matchStatus = statusFilter === 'all' || o.status === statusFilter
+    let matchStatus = false
+    if (statusFilter === 'all') {
+      matchStatus = true
+    } else if (statusFilter === 'due') {
+      matchStatus = !!(o.dueAmount && o.dueAmount > 0)
+    } else {
+      matchStatus = o.status === statusFilter
+    }
 
     return matchSearch && matchStatus
   })
+
+  const displayedOrders = filtered.slice(0, visibleCount)
 
   if (loading) {
     return (
@@ -100,7 +150,7 @@ const History = () => {
 
         {/* Status Filter */}
         <div className="flex gap-2 flex-wrap">
-          {['all', 'pending', 'ready', 'completed'].map(s => (
+          {['all', 'pending', 'ready', 'completed', 'due'].map(s => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -118,7 +168,7 @@ const History = () => {
 
       {/* Results count */}
       <p className="text-xs text-outline mb-4 font-medium">
-        Showing {filtered.length} of {orders.length} orders
+        Showing {displayedOrders.length} of {filtered.length} orders
       </p>
 
       {/* Desktop Table */}
@@ -144,7 +194,7 @@ const History = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filtered.map(order => {
+                {displayedOrders.map(order => {
                   const sc = statusConfig[order.status]
                   const pc = paymentConfig[order.paymentMethod]
                   const isExpanded = expandedId === order._id
@@ -171,7 +221,9 @@ const History = () => {
                               <p className="font-semibold text-on-surface text-sm">
                                 {order.customerName}
                               </p>
-                              <p className="text-[11px] text-outline">{order.phone}</p>
+                              <p className="text-[11px] text-outline">
+                                {order.phone.startsWith('NO_PHONE_') ? 'N/A' : order.phone}
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -182,9 +234,16 @@ const History = () => {
                           ₹{order.total}
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${pc.color}`}>
-                            {pc.label}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${pc.color}`}>
+                              {pc.label}
+                            </span>
+                            {order.dueAmount && order.dueAmount > 0 ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-red-100 text-red-700">
+                                Due: ₹{order.dueAmount}
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-5 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 w-fit ${
@@ -237,6 +296,24 @@ const History = () => {
                                 <span className="text-xs font-semibold text-slate-500">Total:</span>
                                 <span className="text-sm font-bold text-on-surface">₹{order.total}</span>
                               </div>
+                              {order.dueAmount && order.dueAmount > 0 ? (
+                                <>
+                                  <div className="w-px h-5 bg-slate-200" />
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="material-symbols-outlined text-red-500 text-base">warning</span>
+                                      <span className="text-xs font-semibold text-slate-500">Due (Credit):</span>
+                                      <span className="text-sm font-bold text-red-600">₹{order.dueAmount}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleClearDueClick(order)}
+                                      className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
+                                    >
+                                      Clear Due
+                                    </button>
+                                  </div>
+                                </>
+                              ) : null}
                             </div>
                           </td>
                         </tr>
@@ -250,7 +327,7 @@ const History = () => {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-3">
-            {filtered.map(order => {
+            {displayedOrders.map(order => {
               const sc = statusConfig[order.status]
               const pc = paymentConfig[order.paymentMethod]
               return (
@@ -275,7 +352,9 @@ const History = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-sm">{order.customerName}</p>
-                      <p className="text-xs text-outline">{order.phone}</p>
+                      <p className="text-xs text-outline">
+                        {order.phone.startsWith('NO_PHONE_') ? 'N/A' : order.phone}
+                      </p>
                     </div>
                   </div>
                   <p className="text-xs text-outline mb-2">
@@ -283,7 +362,12 @@ const History = () => {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-on-surface">₹{order.total}</span>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center flex-wrap justify-end">
+                      {order.dueAmount && order.dueAmount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-red-100 text-red-700">
+                          Due: ₹{order.dueAmount}
+                        </span>
+                      )}
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${pc.color}`}>
                         {pc.label}
                       </span>
@@ -297,18 +381,35 @@ const History = () => {
                   </div>
                   {/* Expanded payment detail */}
                   {expandedId === order._id && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-blue-500 text-base">account_balance</span>
-                        <span className="text-[11px] font-semibold text-slate-500">UPI:</span>
-                        <span className="text-xs font-bold text-blue-600">₹{order.upiAmount || 0}</span>
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-3">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-blue-500 text-base">account_balance</span>
+                          <span className="text-[11px] font-semibold text-slate-500">UPI:</span>
+                          <span className="text-xs font-bold text-blue-600">₹{order.upiAmount || 0}</span>
+                        </div>
+                        <div className="w-px h-4 bg-slate-200" />
+                        <div className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-emerald-500 text-base">payments</span>
+                          <span className="text-[11px] font-semibold text-slate-500">Cash:</span>
+                          <span className="text-xs font-bold text-emerald-600">₹{order.cashAmount || 0}</span>
+                        </div>
                       </div>
-                      <div className="w-px h-4 bg-slate-200" />
-                      <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-emerald-500 text-base">payments</span>
-                        <span className="text-[11px] font-semibold text-slate-500">Cash:</span>
-                        <span className="text-xs font-bold text-emerald-600">₹{order.cashAmount || 0}</span>
-                      </div>
+                      {order.dueAmount && order.dueAmount > 0 ? (
+                        <div className="flex items-center justify-between bg-red-50 p-2.5 rounded-xl border border-red-100">
+                          <div className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-red-500 text-base">warning</span>
+                            <span className="text-xs font-semibold text-slate-500">Due:</span>
+                            <span className="text-sm font-bold text-red-600">₹{order.dueAmount}</span>
+                          </div>
+                          <button
+                            onClick={() => handleClearDueClick(order)}
+                            className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
+                          >
+                            Clear Due
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                   <p className="text-[11px] text-outline mt-2">
@@ -318,6 +419,19 @@ const History = () => {
               )
             })}
           </div>
+
+          {/* See More Button */}
+          {filtered.length > visibleCount && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={() => setVisibleCount(filtered.length)}
+                className="px-6 py-3 bg-white border border-slate-200 text-primary font-bold text-sm rounded-xl hover:border-primary/40 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">expand_more</span>
+                See More
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -327,6 +441,92 @@ const History = () => {
           order={printOrder}
           onClose={() => setPrintOrder(null)}
         />
+      )}
+
+      {/* Clear Due Modal */}
+      {dueOrder && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div>
+              <h3 className="font-extrabold text-on-surface text-lg mb-1">
+                Clear Outstanding Due
+              </h3>
+              <p className="text-outline text-xs">
+                Order #{dueOrder.orderId} • Total Due: ₹{dueOrder.dueAmount}
+              </p>
+            </div>
+
+            {/* Clear Payment Method */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-outline uppercase tracking-wider">
+                Payment Method
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setClearMethod('cash')}
+                  className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border ${
+                    clearMethod === 'cash'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-white text-outline border-slate-200 hover:border-primary/40'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">payments</span>
+                  Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClearMethod('upi')}
+                  className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border ${
+                    clearMethod === 'upi'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-white text-outline border-slate-200 hover:border-primary/40'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">account_balance</span>
+                  UPI
+                </button>
+              </div>
+            </div>
+
+            {/* Clear Amount Input */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-outline uppercase tracking-wider">
+                Amount Paid
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-outline font-bold text-sm">₹</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={dueOrder.dueAmount}
+                  value={clearAmount || ''}
+                  onChange={e => setClearAmount(Math.max(0, Math.min(dueOrder.dueAmount || 0, parseFloat(e.target.value) || 0)))}
+                  className="w-full pl-7 pr-3 py-2.5 bg-surface-container-low rounded-xl border border-transparent focus:border-primary/40 text-sm font-bold outline-none transition-all"
+                  placeholder="₹0"
+                />
+              </div>
+              <p className="text-[10px] text-outline">
+                Maximum allowed: ₹{dueOrder.dueAmount}
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={confirmClearDue}
+                className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-colors cursor-pointer"
+              >
+                Confirm ✓
+              </button>
+              <button
+                onClick={() => setDueOrder(null)}
+                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

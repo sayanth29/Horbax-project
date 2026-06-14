@@ -8,10 +8,10 @@ const calcSummary = (orders: IOrder[]) => {
   const pendingOrders = orders.filter((o) => o.status !== 'completed')
 
   return {
-    totalCollected: completedOrders.reduce((sum, o) => sum + o.total, 0),
+    totalCollected: completedOrders.reduce((sum, o) => sum + (o.upiAmount || 0) + (o.cashAmount || 0), 0),
     totalUPI: completedOrders.reduce((sum, o) => sum + (o.upiAmount || 0), 0),
     totalCash: completedOrders.reduce((sum, o) => sum + (o.cashAmount || 0), 0),
-    totalPending: pendingOrders.reduce((sum, o) => sum + o.total, 0),
+    totalPending: pendingOrders.reduce((sum, o) => sum + o.total, 0) + completedOrders.reduce((sum, o) => sum + (o.dueAmount || 0), 0),
     completedOrders: completedOrders.length,
     pendingOrders: pendingOrders.length,
   }

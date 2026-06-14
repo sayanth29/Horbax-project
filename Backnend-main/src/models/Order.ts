@@ -18,6 +18,7 @@ export interface IOrder extends Document {
   paymentMethod:    'cash_pending' | 'cash_paid' | 'upi' | 'upi_cash'
   upiAmount:        number
   cashAmount:       number
+  dueAmount:        number
   status:           'pending' | 'ready' | 'completed'
   deliveryType:     'takeaway' | 'home_delivery'   // 👈 add here
   deliveryAddress?: string                          // 👈 add here
@@ -50,6 +51,7 @@ const orderSchema = new Schema<IOrder>(
     },
     upiAmount:  { type: Number, default: 0 },
     cashAmount: { type: Number, default: 0 },
+    dueAmount:  { type: Number, default: 0 },
     status: {
       type:    String,
       enum:    ['pending', 'ready', 'completed'],

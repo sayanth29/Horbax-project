@@ -133,7 +133,9 @@ const PrintBill = ({ order, onClose }: PrintBillProps) => {
             {/* Phone */}
             <div style={{ fontSize: '10px', marginBottom: '1mm' }}>
               <span>Ph: </span>
-              <span style={{ fontWeight: 'bold' }}>{order.phone}</span>
+              <span style={{ fontWeight: 'bold' }}>
+                {order.phone.startsWith('NO_PHONE_') ? 'N/A' : order.phone}
+              </span>
             </div>
 
             {/* Delivery date if exists */}

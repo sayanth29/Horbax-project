@@ -107,7 +107,7 @@ export const updateOrder = async (req: Request, res: Response): Promise<void> =>
     // Whitelist allowed fields to prevent mass assignment
     const allowedFields = [
       'customerName', 'phone', 'items', 'total',
-      'paymentMethod', 'upiAmount', 'cashAmount',
+      'paymentMethod', 'upiAmount', 'cashAmount', 'dueAmount',
       'status', 'deliveryDate', 'deliveryType',
       'deliveryAddress', 'deliveryCharge', 'notes'
     ] as const
@@ -172,16 +172,21 @@ export const collectOrder = async (req: Request, res: Response): Promise<void> =
       return
     }
 
-    let finalUpiAmount = upiAmount || 0
-    let finalCashAmount = cashAmount || 0
+    let finalUpiAmount = 0
+    let finalCashAmount = 0
 
     if (paymentMethod === 'upi') {
-      finalUpiAmount = total
+      finalUpiAmount = upiAmount !== undefined ? Number(upiAmount) : total
       finalCashAmount = 0
     } else if (paymentMethod === 'cash_paid') {
-      finalCashAmount = total
+      finalCashAmount = cashAmount !== undefined ? Number(cashAmount) : total
       finalUpiAmount = 0
+    } else if (paymentMethod === 'upi_cash') {
+      finalUpiAmount = Number(upiAmount) || 0
+      finalCashAmount = Number(cashAmount) || 0
     }
+
+    const finalDueAmount = Math.max(0, total - finalUpiAmount - finalCashAmount)
 
     const order = await Order.findByIdAndUpdate(
       req.params.id,
@@ -191,6 +196,7 @@ export const collectOrder = async (req: Request, res: Response): Promise<void> =
         total,
         upiAmount:   finalUpiAmount,
         cashAmount:  finalCashAmount,
+        dueAmount:   finalDueAmount,
         completedAt: new Date(),
       },
       { new: true }

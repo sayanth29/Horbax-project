@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import api from '../api/axios'
 import type { Settings } from '../types/types'
 
@@ -27,6 +27,7 @@ const NewOrder = () => {
   ])
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(false)
+  const isPlacingOrder = useRef(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
@@ -113,25 +114,31 @@ const NewOrder = () => {
   const total = rows.reduce((sum, row) => sum + getRowTotal(row), 0) + deliveryCharge
 
   const placeOrder = async () => {
+    if (isPlacingOrder.current) return
+    isPlacingOrder.current = true
+
     setError('')
     setSuccess('')
 
-    if (!phone || !name) {
-      setError('Please enter customer phone and name')
+    if (!name) {
+      setError('Please enter customer name')
+      isPlacingOrder.current = false
       return
     }
 
     const validRows = rows.filter(r => r.cloth && r.wash)
     if (validRows.length === 0) {
       setError('Please add at least one cloth item with wash type')
+      isPlacingOrder.current = false
       return
     }
 
     try {
       setLoading(true)
+      const finalPhone = phone.trim() || `NO_PHONE_${Date.now()}`
       await api.post('/orders', {
         customerName: name,
-        phone,
+        phone: finalPhone,
         items: validRows.map(r => ({ qty: r.qty, cloth: r.cloth, wash: r.wash, price: getRowTotal(r) })),
         total,
         deliveryDate,
@@ -148,6 +155,7 @@ const NewOrder = () => {
           ?.response?.data?.message || 'Failed to place order'
       )
     } finally {
+      isPlacingOrder.current = false
       setLoading(false)
     }
   }

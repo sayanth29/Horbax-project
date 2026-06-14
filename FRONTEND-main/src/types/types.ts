@@ -26,6 +26,7 @@ export interface Order {
   upiAmount:       number
   cashAmount:      number
   status:          'pending' | 'ready' | 'completed'
+  dueAmount?:      number
   deliveryType:    'takeaway' | 'home_delivery'   // 👈 add this
   deliveryAddress?: string                         // 👈 add this
   deliveryCharge:  number                          // 👈 add this
