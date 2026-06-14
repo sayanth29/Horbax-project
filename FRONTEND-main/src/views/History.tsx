@@ -30,25 +30,47 @@ const History = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [printOrder, setPrintOrder] = useState<Order | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [visibleCount, setVisibleCount] = useState(20)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
 
   // Clear Due Modal states
   const [dueOrder, setDueOrder] = useState<Order | null>(null)
   const [clearMethod, setClearMethod] = useState<'upi' | 'cash'>('cash')
   const [clearAmount, setClearAmount] = useState(0)
 
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
   const toggleExpand = (id: string) =>
     setExpandedId(prev => (prev === id ? null : id))
 
-  // Reset pagination when search or status filter changes
+  // Debounce search query changes
   useEffect(() => {
-    setVisibleCount(20)
-  }, [search, statusFilter])
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [search])
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (reset: boolean = false) => {
     try {
-      const { data } = await api.get<Order[]>('/orders')
-      setOrders(data)
+      if (reset) {
+        setLoading(true)
+      }
+      const currentPage = reset ? 1 : page
+      const { data } = await api.get<{ orders: Order[]; total: number }>('/orders', {
+        params: {
+          page: currentPage,
+          limit: 20,
+          search: debouncedSearch,
+          status: statusFilter
+        }
+      })
+      if (reset) {
+        setOrders(data.orders)
+      } else {
+        setOrders(prev => [...prev, ...data.orders])
+      }
+      setTotal(data.total)
     } catch (err) {
       console.error(err)
     } finally {
@@ -56,9 +78,18 @@ const History = () => {
     }
   }
 
+  // Triggered when filters/debouncedSearch change
   useEffect(() => {
-    fetchOrders()
-  }, [])
+    setPage(1)
+    fetchOrders(true)
+  }, [statusFilter, debouncedSearch])
+
+  // Triggered when page increments (for pagination/loading more)
+  useEffect(() => {
+    if (page > 1) {
+      fetchOrders(false)
+    }
+  }, [page])
 
   const handleClearDueClick = (order: Order) => {
     setDueOrder(order)
@@ -83,32 +114,12 @@ const History = () => {
       })
 
       setDueOrder(null)
-      fetchOrders()
+      setPage(1)
+      fetchOrders(true)
     } catch (err) {
       console.error(err)
     }
   }
-
-  // Filter orders
-  const filtered = orders.filter(o => {
-    const matchSearch =
-      o.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      o.phone.includes(search) ||
-      o.orderId.toLowerCase().includes(search.toLowerCase())
-
-    let matchStatus = false
-    if (statusFilter === 'all') {
-      matchStatus = true
-    } else if (statusFilter === 'due') {
-      matchStatus = !!(o.dueAmount && o.dueAmount > 0)
-    } else {
-      matchStatus = o.status === statusFilter
-    }
-
-    return matchSearch && matchStatus
-  })
-
-  const displayedOrders = filtered.slice(0, visibleCount)
 
   if (loading) {
     return (
@@ -168,11 +179,11 @@ const History = () => {
 
       {/* Results count */}
       <p className="text-xs text-outline mb-4 font-medium">
-        Showing {displayedOrders.length} of {filtered.length} orders
+        Showing {orders.length} of {total} orders
       </p>
 
       {/* Desktop Table */}
-      {filtered.length === 0 ? (
+      {orders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
           <span className="material-symbols-outlined text-5xl text-outline/40">
             search_off
@@ -194,7 +205,7 @@ const History = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {displayedOrders.map(order => {
+                {orders.map(order => {
                   const sc = statusConfig[order.status]
                   const pc = paymentConfig[order.paymentMethod]
                   const isExpanded = expandedId === order._id
@@ -327,7 +338,7 @@ const History = () => {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-3">
-            {displayedOrders.map(order => {
+            {orders.map(order => {
               const sc = statusConfig[order.status]
               const pc = paymentConfig[order.paymentMethod]
               return (
@@ -421,10 +432,10 @@ const History = () => {
           </div>
 
           {/* See More Button */}
-          {filtered.length > visibleCount && (
+          {orders.length < total && (
             <div className="flex justify-center mt-6">
               <button
-                onClick={() => setVisibleCount(filtered.length)}
+                onClick={() => setPage(prev => prev + 1)}
                 className="px-6 py-3 bg-white border border-slate-200 text-primary font-bold text-sm rounded-xl hover:border-primary/40 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-lg">expand_more</span>

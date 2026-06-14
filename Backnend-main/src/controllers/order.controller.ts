@@ -7,8 +7,40 @@ import Customer from '../models/customer.js'
 // GET /api/orders
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 })
-    res.json(orders)
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 20
+    const skip = (page - 1) * limit
+    const search = req.query.search as string
+    const status = req.query.status as string
+
+    const query: any = {}
+
+    // Add search conditions
+    if (search) {
+      query.$or = [
+        { customerName: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { orderId: { $regex: search, $options: 'i' } }
+      ]
+    }
+
+    // Add status/due conditions
+    if (status && status !== 'all') {
+      if (status === 'due') {
+        query.dueAmount = { $gt: 0 }
+      } else {
+        query.status = status
+      }
+    }
+
+    const orders = await Order.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+
+    const total = await Order.countDocuments(query)
+
+    res.json({ orders, total })
   } catch (error) {
     res.status(500).json({ message: 'Server error' })
   }
