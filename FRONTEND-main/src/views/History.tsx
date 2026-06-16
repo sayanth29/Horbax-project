@@ -121,13 +121,7 @@ const History = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
+
 
   return (
     <div className="p-6 sm:p-8 max-w-7xl mx-auto">
@@ -182,8 +176,12 @@ const History = () => {
         Showing {orders.length} of {total} orders
       </p>
 
-      {/* Desktop Table */}
-      {orders.length === 0 ? (
+      {/* Desktop Table / Loader */}
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full" />
+        </div>
+      ) : orders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
           <span className="material-symbols-outlined text-5xl text-outline/40">
             search_off
