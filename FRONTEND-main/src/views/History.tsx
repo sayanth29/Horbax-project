@@ -11,6 +11,7 @@ const statusConfig: Record<string, { color: string; label: string }> = {
   pending:   { color: 'bg-amber-100 text-amber-700',     label: 'Pending'   },
   ready:     { color: 'bg-sky-100 text-sky-700',         label: 'Ready'     },
   completed: { color: 'bg-emerald-100 text-emerald-700', label: 'Completed' },
+  cancelled: { color: 'bg-red-100 text-red-700',         label: 'Cancelled' },
 }
 
 const paymentConfig: Record<string, { color: string; label: string }> = {
@@ -37,6 +38,10 @@ const History = () => {
   const [dueOrder, setDueOrder] = useState<Order | null>(null)
   const [clearMethod, setClearMethod] = useState<'upi' | 'cash'>('cash')
   const [clearAmount, setClearAmount] = useState(0)
+
+  // Cancel Order states
+  const [cancelTargetOrder, setCancelTargetOrder] = useState<Order | null>(null)
+  const [cancelPasscode, setCancelPasscode] = useState('')
 
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
@@ -121,6 +126,19 @@ const History = () => {
     }
   }
 
+  const confirmCancelOrder = async () => {
+    if (!cancelTargetOrder) return
+    try {
+      await api.patch(`/orders/${cancelTargetOrder._id}/cancel`, { passcode: cancelPasscode })
+      setCancelTargetOrder(null)
+      setCancelPasscode('')
+      setPage(1)
+      fetchOrders(true)
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to cancel order')
+    }
+  }
+
 
 
   return (
@@ -155,7 +173,7 @@ const History = () => {
 
         {/* Status Filter */}
         <div className="flex gap-2 flex-wrap">
-          {['all', 'pending', 'ready', 'completed', 'due'].map(s => (
+          {['all', 'pending', 'ready', 'completed', 'cancelled', 'due'].map(s => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -209,7 +227,7 @@ const History = () => {
                   const isExpanded = expandedId === order._id
                   return (
                     <React.Fragment key={order._id}>
-                      <tr className="hover:bg-surface-container-low transition-colors">
+                      <tr className={`hover:bg-surface-container-low transition-colors ${order.status === 'cancelled' ? 'line-through opacity-70 bg-red-50/20' : ''}`}>
                         <td className="px-5 py-4">
                           <button
                             onClick={() => toggleExpand(order._id)}
@@ -277,7 +295,7 @@ const History = () => {
                         <td className="px-5 py-4">
                           <button
                             onClick={() => setPrintOrder(order)}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors text-xs font-bold"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors text-xs font-bold no-underline"
                           >
                             <span className="material-symbols-outlined text-sm">print</span>
                             Bill
@@ -323,6 +341,21 @@ const History = () => {
                                   </div>
                                 </>
                               ) : null}
+                              {order.status !== 'cancelled' && (
+                                <>
+                                  <div className="w-px h-5 bg-slate-200" />
+                                  <button
+                                    onClick={() => {
+                                      setCancelTargetOrder(order)
+                                      setCancelPasscode('')
+                                    }}
+                                    className="px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors shadow-sm cursor-pointer flex items-center gap-1"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">cancel</span>
+                                    Cancel Order
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -340,7 +373,7 @@ const History = () => {
               const sc = statusConfig[order.status]
               const pc = paymentConfig[order.paymentMethod]
               return (
-                <div key={order._id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <div key={order._id} className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-4 ${order.status === 'cancelled' ? 'line-through opacity-70 bg-red-50/20' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <button
                       onClick={() => toggleExpand(order._id)}
@@ -382,7 +415,7 @@ const History = () => {
                       </span>
                       <button
                         onClick={() => setPrintOrder(order)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold"
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold no-underline"
                       >
                         <span className="material-symbols-outlined text-sm">print</span>
                       </button>
@@ -419,6 +452,18 @@ const History = () => {
                           </button>
                         </div>
                       ) : null}
+                      {order.status !== 'cancelled' && (
+                        <button
+                          onClick={() => {
+                            setCancelTargetOrder(order)
+                            setCancelPasscode('')
+                          }}
+                          className="w-full py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1 mt-1"
+                        >
+                          <span className="material-symbols-outlined text-sm">cancel</span>
+                          Cancel Order
+                        </button>
+                      )}
                     </div>
                   )}
                   <p className="text-[11px] text-outline mt-2">
@@ -532,6 +577,49 @@ const History = () => {
                 className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors cursor-pointer"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Order Modal */}
+      {cancelTargetOrder && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div>
+              <h3 className="font-extrabold text-red-600 text-lg mb-1 flex items-center gap-2">
+                <span className="material-symbols-outlined">warning</span>
+                Cancel Order
+              </h3>
+              <p className="text-outline text-sm">
+                Are you sure you want to cancel order <strong>#{cancelTargetOrder.orderId}</strong>?
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-outline uppercase tracking-wider">
+                Security Passcode
+              </label>
+              <input
+                type="password"
+                value={cancelPasscode}
+                onChange={e => setCancelPasscode(e.target.value)}
+                className="w-full px-4 py-3 bg-surface-container-low rounded-xl border border-transparent focus:border-red-400 text-sm font-bold outline-none transition-all"
+                placeholder="Enter passcode to confirm"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={confirmCancelOrder}
+                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors cursor-pointer"
+              >
+                Cancel Order
+              </button>
+              <button
+                onClick={() => setCancelTargetOrder(null)}
+                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Keep Order
               </button>
             </div>
           </div>

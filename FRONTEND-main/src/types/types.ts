@@ -25,7 +25,7 @@ export interface Order {
   paymentMethod:   'cash_pending' | 'cash_paid' | 'upi' | 'upi_cash'
   upiAmount:       number
   cashAmount:      number
-  status:          'pending' | 'ready' | 'completed'
+  status:          'pending' | 'ready' | 'completed' | 'cancelled'
   dueAmount?:      number
   deliveryType:    'takeaway' | 'home_delivery'   // 👈 add this
   deliveryAddress?: string                         // 👈 add this

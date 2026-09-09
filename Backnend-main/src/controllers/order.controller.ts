@@ -269,3 +269,38 @@ export const markAsReady = async (req:Request,res:Response): Promise<void> =>{
     res.status(500).json({message: 'server error'})
   }
 }
+
+// PATCH /api/orders/:id/cancel
+export const cancelOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { passcode } = req.body
+    
+    // Security check
+    if (passcode !== 'HorbaxCancel') {
+      res.status(403).json({ message: 'Invalid cancel passcode' })
+      return
+    }
+
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: 'cancelled',
+        // Zero out amounts so it doesn't skew revenue and pending dues
+        total: 0,
+        upiAmount: 0,
+        cashAmount: 0,
+        dueAmount: 0,
+      },
+      { new: true }
+    )
+
+    if (!order) {
+      res.status(404).json({ message: 'Order not found' })
+      return
+    }
+
+    res.json(order)
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' })
+  }
+}

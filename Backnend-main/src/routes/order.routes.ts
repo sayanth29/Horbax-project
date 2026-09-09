@@ -6,7 +6,8 @@ import { getAllOrders,
          updateOrder,
          deleteOrder,
          collectOrder,
-         markAsReady
+         markAsReady,
+         cancelOrder
 } from "../controllers/order.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
@@ -22,6 +23,7 @@ router.patch('/:id',protect, updateOrder);        // ✅ was PUT '/upate' (typo 
 router.delete('/:id',protect, deleteOrder);        // ✅ was '/delet' (typo + missing :id)
 router.patch('/:id/ready',protect,markAsReady)    // make to status is ready
 router.patch('/:id/collect',protect, collectOrder);    // ✅ was '/collection' (missing :id)
+router.patch('/:id/cancel',protect, cancelOrder); // Cancel order
 
  export default router;
 

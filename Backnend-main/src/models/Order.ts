@@ -54,7 +54,7 @@ const orderSchema = new Schema<IOrder>(
     dueAmount:  { type: Number, default: 0 },
     status: {
       type:    String,
-      enum:    ['pending', 'ready', 'completed'],
+      enum:    ['pending', 'ready', 'completed', 'cancelled'],
       default: 'pending',
     },
     deliveryType: {                                  // 👈 add here inside schema
