@@ -210,13 +210,13 @@ const Collection = () => {
               <p className="text-sm font-bold text-on-surface mb-3">Payment Breakdown</p>
               <div className="flex rounded-full overflow-hidden h-4 mb-3">
                 {(summary?.totalUPI ?? 0) > 0 && (
-                  <div className="bg-sky-400 transition-all" style={{ width: `${((summary?.totalUPI ?? 0) / (summary?.totalCollected ?? 1)) * 100}%` }} />
+                  <div className="bg-sky-400 transition-all" style={{ width: `${((summary?.totalUPI ?? 0) / (((summary?.totalCollected ?? 0) + (summary?.totalPending ?? 0)) || 1)) * 100}%` }} />
                 )}
                 {(summary?.totalCash ?? 0) > 0 && (
-                  <div className="bg-purple-400 transition-all" style={{ width: `${((summary?.totalCash ?? 0) / (summary?.totalCollected ?? 1)) * 100}%` }} />
+                  <div className="bg-purple-400 transition-all" style={{ width: `${((summary?.totalCash ?? 0) / (((summary?.totalCollected ?? 0) + (summary?.totalPending ?? 0)) || 1)) * 100}%` }} />
                 )}
                 {(summary?.totalPending ?? 0) > 0 && (
-                  <div className="bg-amber-300 transition-all" style={{ width: `${((summary?.totalPending ?? 0) / ((summary?.totalCollected ?? 0) + (summary?.totalPending ?? 0))) * 100}%` }} />
+                  <div className="bg-amber-300 transition-all" style={{ width: `${((summary?.totalPending ?? 0) / (((summary?.totalCollected ?? 0) + (summary?.totalPending ?? 0)) || 1)) * 100}%` }} />
                 )}
               </div>
               <div className="flex gap-4 flex-wrap">

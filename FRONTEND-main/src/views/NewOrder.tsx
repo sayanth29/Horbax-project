@@ -30,6 +30,7 @@ const NewOrder = () => {
   const isPlacingOrder = useRef(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [pendingDue, setPendingDue] = useState(0)
 
   // ===== EFFECTS =====
   useEffect(() => {
@@ -54,12 +55,18 @@ const NewOrder = () => {
   // ===== FUNCTIONS =====
   const handlePhoneChange = async (value: string) => {
     setPhone(value)
+    if (value.length < 10) {
+      setPendingDue(0)
+    }
     if (value.length >= 10) {
       try {
         const { data } = await api.get(`/customers/phone/${value}`)
         if (data?.name) setName(data.name)
+        if (data?.totalDue) setPendingDue(data.totalDue)
+        else setPendingDue(0)
       } catch {
         // New customer
+        setPendingDue(0)
       }
     }
   }
@@ -108,6 +115,7 @@ const NewOrder = () => {
     setRows([{ id: 1, cloth: '', qty: 1, wash: '', basePrice: 0 }])
     setError('')
     setSuccess('')
+    setPendingDue(0)
   }
 
   // Grand total = all row totals + delivery charge
@@ -224,6 +232,23 @@ const NewOrder = () => {
                 </div>
               </div>
             </div>
+
+            {/* Pending Due Warning Banner */}
+            {pendingDue > 0 && (
+              <div className="mt-5 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3.5 animate-[fadeIn_0.3s_ease-out]">
+                <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-amber-600 text-xl">warning</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-amber-800">
+                    Pending Due: <span className="text-base">₹{pendingDue}</span>
+                  </p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    This customer has unpaid balance from previous orders
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Cloth Items */}

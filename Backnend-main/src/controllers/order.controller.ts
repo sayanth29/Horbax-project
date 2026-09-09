@@ -37,6 +37,7 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .lean()
 
     const total = await Order.countDocuments(query)
 
@@ -51,7 +52,7 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
 // GET /api/orders/pending
 export const getPendingOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const orders = await Order.find({ status: { $in: ['pending', 'ready'] } }).sort({ createdAt: -1 })
+    const orders = await Order.find({ status: { $in: ['pending', 'ready'] } }).sort({ createdAt: -1 }).lean()
     res.json(orders)
   } catch (error) {
     res.status(500).json({ message: 'Server error' })
@@ -63,7 +64,7 @@ export const getPendingOrders = async (req: Request, res: Response): Promise<voi
 // GET /api/orders/:id
 export const getOrderById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const order = await Order.findById(req.params.id)
+    const order = await Order.findById(req.params.id).lean()
     if (!order) {
       res.status(404).json({ message: 'Order not found' })
       return

@@ -23,5 +23,8 @@ const expenseSchema = new Schema<IExpense>(
   { timestamps: true }
 )
 
+// Index for date-range queries (today, month, range)
+expenseSchema.index({ createdAt: -1 })
+
 const Expense = mongoose.model<IExpense>('Expense', expenseSchema)
 export default Expense

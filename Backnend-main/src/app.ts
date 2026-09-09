@@ -45,7 +45,7 @@ app.use('/api/expenses', expenseRoutes)
 app.use('/api/collection', collectionRoutes)
 
 app.get('/', (req, res) => {
-  res.json({ message: '🧺 LaundryPro API is running!' })
+  res.json({ message: '🧺 Horbax API is running!' })
 })
 
 const PORT = process.env.PORT || 5000

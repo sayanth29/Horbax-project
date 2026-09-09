@@ -1,17 +1,31 @@
 import { Request, Response } from 'express'
 import Order from '../models/Order.js'
-import { IOrder } from '../models/Order.js'
+
+// Shape used by calcSummary — works with both full documents and lean objects
+interface OrderData {
+  status: string
+  upiAmount?: number
+  cashAmount?: number
+  total: number
+  dueAmount?: number
+}
 
 // Helper: calculate collection summary from a list of orders
-const calcSummary = (orders: IOrder[]) => {
+const calcSummary = (orders: OrderData[]) => {
   const completedOrders = orders.filter((o) => o.status === 'completed')
   const pendingOrders = orders.filter((o) => o.status !== 'completed')
 
   return {
-    totalCollected: completedOrders.reduce((sum, o) => sum + (o.upiAmount || 0) + (o.cashAmount || 0), 0),
-    totalUPI: completedOrders.reduce((sum, o) => sum + (o.upiAmount || 0), 0),
-    totalCash: completedOrders.reduce((sum, o) => sum + (o.cashAmount || 0), 0),
-    totalPending: pendingOrders.reduce((sum, o) => sum + o.total, 0) + completedOrders.reduce((sum, o) => sum + (o.dueAmount || 0), 0),
+    totalCollected: orders.reduce((sum, o) => sum + (o.upiAmount || 0) + (o.cashAmount || 0), 0),
+    totalUPI: orders.reduce((sum, o) => sum + (o.upiAmount || 0), 0),
+    totalCash: orders.reduce((sum, o) => sum + (o.cashAmount || 0), 0),
+    totalPending: orders.reduce((sum, o) => {
+      if (o.status === 'completed') {
+        return sum + (o.dueAmount || 0)
+      }
+      const paid = (o.upiAmount || 0) + (o.cashAmount || 0)
+      return sum + Math.max(0, o.total - paid)
+    }, 0),
     completedOrders: completedOrders.length,
     pendingOrders: pendingOrders.length,
   }
@@ -29,7 +43,7 @@ export const getTodayCollection = async (req: Request, res: Response): Promise<v
 
     const orders = await Order.find({
       createdAt: { $gte: start, $lte: end },
-    }).sort({ createdAt: -1 })
+    }).sort({ createdAt: -1 }).lean()
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
@@ -50,7 +64,7 @@ export const getDateCollection = async (req: Request, res: Response): Promise<vo
 
     const orders = await Order.find({
       createdAt: { $gte: start, $lte: end }
-    })
+    }).lean()
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
@@ -71,7 +85,7 @@ export const getMonthCollection = async (req: Request, res: Response): Promise<v
 
     const orders = await Order.find({
       createdAt: { $gte: start, $lte: end },
-    }).sort({ createdAt: -1 })
+    }).sort({ createdAt: -1 }).lean()
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
@@ -83,7 +97,7 @@ export const getMonthCollection = async (req: Request, res: Response): Promise<v
 // Returns all orders with a collection summary
 export const getAllCollection = async (req: Request, res: Response): Promise<void> => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 })
+    const orders = await Order.find().sort({ createdAt: -1 }).lean()
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
@@ -97,6 +111,11 @@ export const getRangeCollection = async (req: Request, res: Response): Promise<v
   try {
     const { from, to } = req.query
 
+    if (!from || !to) {
+      res.status(400).json({ message: 'Both "from" and "to" dates are required' })
+      return
+    }
+
     const start = new Date(from as string)
     start.setHours(0, 0, 0, 0)
 
@@ -105,7 +124,7 @@ export const getRangeCollection = async (req: Request, res: Response): Promise<v
 
     const orders = await Order.find({
       createdAt: { $gte: start, $lte: end }
-    })
+    }).lean()
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {

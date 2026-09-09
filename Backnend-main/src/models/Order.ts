@@ -85,6 +85,12 @@ orderSchema.pre('save', async function () {
   this.orderId = 'LP' + String(nextNum).padStart(4, '0')
 })
 
+// ─── Indexes for fast queries ──────────────────────────────────────────────────
+orderSchema.index({ status: 1, createdAt: -1 })   // pending/ready/completed + date sort
+orderSchema.index({ phone: 1 })                    // customer lookup by phone
+orderSchema.index({ createdAt: -1 })               // date-range queries (collection, dashboard)
+orderSchema.index({ dueAmount: 1 })                // due/credit filter
+
 const Order = mongoose.model<IOrder>('Order', orderSchema)
 
 export default Order

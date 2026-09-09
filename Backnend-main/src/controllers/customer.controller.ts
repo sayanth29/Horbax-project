@@ -6,21 +6,27 @@ import Order from '../models/Order.js'
 // Returns all customers with their order stats
 export const getAllCustomers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customers = await Customer.find().sort({ createdAt: -1 })
+    const customers = await Customer.find().sort({ createdAt: -1 }).lean()
 
-    // For each customer attach their order history stats
-    const result = await Promise.all(
-      customers.map(async (customer) => {
-        const orders = await Order.find({ phone: customer.phone })
-        const totalSpent = orders.reduce((sum, order) => sum + order.total, 0)
+    // Single aggregation to get order stats for ALL customers at once
+    // (replaces N+1 individual queries — massive speed improvement)
+    const orderStats = await Order.aggregate([
+      { $group: {
+        _id: '$phone',
+        totalOrders: { $sum: 1 },
+        totalSpent: { $sum: '$total' }
+      }}
+    ])
 
-        return {
-          ...customer.toObject(),   // spread all customer fields
-          totalOrders: orders.length,
-          totalSpent,
-        }
-      })
+    const statsMap = new Map(
+      orderStats.map((s: { _id: string; totalOrders: number; totalSpent: number }) => [s._id, s])
     )
+
+    const result = customers.map(customer => ({
+      ...customer,
+      totalOrders: statsMap.get(customer.phone)?.totalOrders || 0,
+      totalSpent: statsMap.get(customer.phone)?.totalSpent || 0,
+    }))
 
     res.json(result)
   } catch (error) {
@@ -31,18 +37,18 @@ export const getAllCustomers = async (req: Request, res: Response): Promise<void
 // GET /api/customers/:id
 export const getCustomerById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.findById(req.params.id)
+    const customer = await Customer.findById(req.params.id).lean()
     if (!customer) {
       res.status(404).json({ message: 'Customer not found' })
       return
     }
 
     // Get full order history for this customer
-    const orders = await Order.find({ phone: customer.phone }).sort({ createdAt: -1 })
+    const orders = await Order.find({ phone: customer.phone }).sort({ createdAt: -1 }).lean()
     const totalSpent = orders.reduce((sum, order) => sum + order.total, 0)
 
     res.json({
-      ...customer.toObject(),
+      ...customer,
       totalOrders: orders.length,
       totalSpent,
       orders,           // full order history
@@ -56,12 +62,20 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
 // Useful for auto filling name when admin types phone in new order
 export const getCustomerByPhone = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.findOne({ phone: req.params.phone })
+    const customer = await Customer.findOne({ phone: req.params.phone }).lean()
     if (!customer) {
       res.status(404).json({ message: 'Customer not found' })
       return
     }
-    res.json(customer)
+
+    // Sum up all pending dues for this customer
+    const dueResult = await Order.aggregate([
+      { $match: { phone: req.params.phone, dueAmount: { $gt: 0 } } },
+      { $group: { _id: null, totalDue: { $sum: '$dueAmount' } } }
+    ])
+    const totalDue = dueResult[0]?.totalDue || 0
+
+    res.json({ ...customer, totalDue })
   } catch (error) {
     res.status(500).json({ message: 'Server error' })
   }

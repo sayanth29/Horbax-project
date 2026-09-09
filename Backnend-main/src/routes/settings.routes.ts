@@ -22,7 +22,7 @@ import { getSettings,
 
  //cloth type routes
  router.post('/cloth',protect,addClothType);
- router.post('/cloth/:index',protect,updateClothType)
+ router.patch('/cloth/:index',protect,updateClothType)
  router.delete('/cloth/:index',protect,deleteClothType);
  
 

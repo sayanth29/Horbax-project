@@ -173,7 +173,7 @@ const Login = () => {
       {/* Footer */}
       <footer className="w-full flex justify-center py-4 sm:py-6">
         <p className="text-xs sm:text-sm text-outline">
-          © 2025 Horbax. All rights reserved.
+          © {new Date().getFullYear()} Horbax. All rights reserved.
         </p>
       </footer>
 

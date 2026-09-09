@@ -4,7 +4,7 @@ import Expense from '../models/expense.js'
 // GET /api/expenses — all expenses newest first
 export const getAllExpenses = async (req: Request, res: Response): Promise<void> => {
   try {
-    const expenses = await Expense.find().sort({ createdAt: -1 })
+    const expenses = await Expense.find().sort({ createdAt: -1 }).lean()
     res.json(expenses)
   } catch (error) {
     res.status(500).json({ message: 'Server error' })
@@ -22,7 +22,7 @@ export const getTodayExpenses = async (req: Request, res: Response): Promise<voi
 
     const expenses = await Expense.find({
       createdAt: { $gte: start, $lte: end }
-    }).sort({ createdAt: -1 })
+    }).sort({ createdAt: -1 }).lean()
 
     const total      = expenses.reduce((sum, e) => sum + e.amount, 0)
     const shopTotal  = expenses.filter(e => e.expenseType === 'shop').reduce((sum, e) => sum + e.amount, 0)
@@ -48,7 +48,7 @@ export const getMonthExpenses = async (req: Request, res: Response): Promise<voi
 
     const expenses = await Expense.find({
       createdAt: { $gte: start, $lte: end }
-    }).sort({ createdAt: -1 })
+    }).sort({ createdAt: -1 }).lean()
 
     const total      = expenses.reduce((sum, e) => sum + e.amount, 0)
     const shopTotal  = expenses.filter(e => e.expenseType === 'shop').reduce((sum, e) => sum + e.amount, 0)
@@ -70,6 +70,11 @@ export const getRangeExpenses = async (req: Request, res: Response): Promise<voi
   try {
     const { from, to } = req.query
 
+    if (!from || !to) {
+      res.status(400).json({ message: 'Both "from" and "to" dates are required' })
+      return
+    }
+
     const start = new Date(from as string)
     start.setHours(0, 0, 0, 0)
 
@@ -78,7 +83,7 @@ export const getRangeExpenses = async (req: Request, res: Response): Promise<voi
 
     const expenses = await Expense.find({
       createdAt: { $gte: start, $lte: end }
-    }).sort({ createdAt: -1 })
+    }).sort({ createdAt: -1 }).lean()
 
     const total      = expenses.reduce((sum, e) => sum + e.amount, 0)
     const shopTotal  = expenses.filter(e => e.expenseType === 'shop').reduce((sum, e) => sum + e.amount, 0)
