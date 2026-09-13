@@ -290,7 +290,8 @@ const History = () => {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-outline text-xs">
-                          {new Date(order.createdAt).toLocaleDateString('en-IN')}
+                          <div>{new Date(order.createdAt).toLocaleDateString('en-IN')}</div>
+                          <div className="text-[10px] text-outline/60 mt-0.5">{new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
                         </td>
                         <td className="px-5 py-4">
                           <button
@@ -468,6 +469,7 @@ const History = () => {
                   )}
                   <p className="text-[11px] text-outline mt-2">
                     {new Date(order.createdAt).toLocaleDateString('en-IN')}
+                    <span className="text-outline/60 ml-1.5">{new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                   </p>
                 </div>
               )

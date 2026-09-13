@@ -284,7 +284,8 @@ const Collection = () => {
                               </span>
                             </td>
                             <td className="px-5 py-4 text-outline text-xs">
-                              {new Date(order.createdAt).toLocaleDateString('en-IN')}
+                              <div>{new Date(order.createdAt).toLocaleDateString('en-IN')}</div>
+                              <div className="text-[10px] text-outline/60 mt-0.5">{new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
                             </td>
                           </tr>
                         )
@@ -305,7 +306,7 @@ const Collection = () => {
                         </div>
                         <p className="font-semibold text-sm text-on-surface">{order.customerName}</p>
                         <div className="flex justify-between">
-                          <span className="text-outline text-xs">{new Date(order.createdAt).toLocaleDateString('en-IN')}</span>
+                          <span className="text-outline text-xs">{new Date(order.createdAt).toLocaleDateString('en-IN')} <span className="text-outline/60">{new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span></span>
                           <span className="font-bold text-on-surface">₹{order.total}</span>
                         </div>
                       </div>

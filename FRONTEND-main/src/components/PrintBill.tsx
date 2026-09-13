@@ -119,6 +119,9 @@ const PrintBill = ({ order, onClose }: PrintBillProps) => {
                 <span style={{ fontWeight: 'bold' }}>
                   {new Date(order.createdAt).toLocaleDateString('en-IN')}
                 </span>
+                <span style={{ fontSize: '10px', marginLeft: '2mm' }}>
+                  {new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </span>
               </div>
             </div>
 
@@ -265,6 +268,39 @@ const PrintBill = ({ order, onClose }: PrintBillProps) => {
                     </td>
                   </tr>
                 )}
+
+                {/* Previous Due row (Computed) */}
+                {(() => {
+                  const itemsSum = order.items.reduce((sum, item) => sum + (item.price || 0), 0)
+                  const subTotal = itemsSum + (order.deliveryCharge || 0)
+                  const previousDue = order.total - subTotal
+                  
+                  if (previousDue > 0) {
+                    return (
+                      <tr>
+                        <td style={{ ...cellStyle, textAlign: 'center' }}></td>
+                        <td style={{
+                          ...cellStyle,
+                          fontWeight: 'bold',
+                          fontSize: '10px',
+                        }}
+                          colSpan={1}
+                        >
+                          Previous Due
+                        </td>
+                        <td style={{ ...cellStyle, textAlign: 'center' }}></td>
+                        <td style={{
+                          ...cellStyle,
+                          textAlign: 'right',
+                          fontWeight: 'bold',
+                        }}>
+                          {previousDue}/-
+                        </td>
+                      </tr>
+                    )
+                  }
+                  return null
+                })()}
 
                 {/* TOTAL ROW */}
                 <tr>

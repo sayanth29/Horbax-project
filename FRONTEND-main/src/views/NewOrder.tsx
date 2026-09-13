@@ -18,6 +18,7 @@ const NewOrder = () => {
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
   const [deliveryDate, setDeliveryDate] = useState('')
+  const [orderTime, setOrderTime] = useState('')
   const [notes, setNotes] = useState('')
   const [deliveryType, setDeliveryType] = useState<'takeaway' | 'home_delivery'>('takeaway')
   const [deliveryAddress, setDeliveryAddress] = useState('')
@@ -31,6 +32,7 @@ const NewOrder = () => {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [pendingDue, setPendingDue] = useState(0)
+  const [includeDue, setIncludeDue] = useState(false)
 
   // ===== EFFECTS =====
   useEffect(() => {
@@ -108,6 +110,7 @@ const NewOrder = () => {
     setPhone('')
     setName('')
     setDeliveryDate('')
+    setOrderTime('')
     setNotes('')
     setDeliveryType('takeaway')
     setDeliveryAddress('')
@@ -116,10 +119,12 @@ const NewOrder = () => {
     setError('')
     setSuccess('')
     setPendingDue(0)
+    setIncludeDue(false)
   }
 
-  // Grand total = all row totals + delivery charge
-  const total = rows.reduce((sum, row) => sum + getRowTotal(row), 0) + deliveryCharge
+  // Grand total = all row totals + delivery charge + previous due (if included)
+  const itemsTotal = rows.reduce((sum, row) => sum + getRowTotal(row), 0) + deliveryCharge
+  const total = itemsTotal + (includeDue ? pendingDue : 0)
 
   const placeOrder = async () => {
     if (isPlacingOrder.current) return
@@ -150,10 +155,12 @@ const NewOrder = () => {
         items: validRows.map(r => ({ qty: r.qty, cloth: r.cloth, wash: r.wash, price: getRowTotal(r) })),
         total,
         deliveryDate,
+        orderTime: orderTime || undefined,
         deliveryType,
         deliveryAddress,
         deliveryCharge,
         notes,
+        clearDue: includeDue,
       })
       setSuccess('Order placed successfully! 🎉')
       clearForm()
@@ -235,18 +242,31 @@ const NewOrder = () => {
 
             {/* Pending Due Warning Banner */}
             {pendingDue > 0 && (
-              <div className="mt-5 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3.5 animate-[fadeIn_0.3s_ease-out]">
-                <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <span className="material-symbols-outlined text-amber-600 text-xl">warning</span>
+              <div className={`mt-5 flex items-center gap-3 rounded-xl px-5 py-3.5 animate-[fadeIn_0.3s_ease-out] border transition-colors ${includeDue ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-200'}`}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${includeDue ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                  <span className={`material-symbols-outlined text-xl ${includeDue ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {includeDue ? 'check_circle' : 'warning'}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-amber-800">
+                <div className="flex-1">
+                  <p className={`text-sm font-bold ${includeDue ? 'text-emerald-800' : 'text-amber-800'}`}>
                     Pending Due: <span className="text-base">₹{pendingDue}</span>
                   </p>
-                  <p className="text-xs text-amber-600 mt-0.5">
-                    This customer has unpaid balance from previous orders
+                  <p className={`text-xs mt-0.5 ${includeDue ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {includeDue ? 'Due amount will be added to this order' : 'This customer has unpaid balance from previous orders'}
                   </p>
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={includeDue}
+                    onChange={e => setIncludeDue(e.target.checked)}
+                    className="w-5 h-5 rounded border-2 border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                  />
+                  <span className={`text-xs font-bold ${includeDue ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    Clear Due
+                  </span>
+                </label>
               </div>
             )}
           </section>
@@ -364,6 +384,22 @@ const NewOrder = () => {
           {/* Logistics */}
           <section className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 space-y-5">
             <h3 className="text-lg font-bold text-on-surface">Logistics</h3>
+
+            {/* Order Time */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-outline uppercase tracking-wider">
+                Order Time
+              </label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-xl">schedule</span>
+                <input
+                  type="time"
+                  value={orderTime}
+                  onChange={e => setOrderTime(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-surface-container-low rounded-lg border border-transparent focus:border-primary/40 text-sm font-bold text-slate-700 outline-none transition-all"
+                />
+              </div>
+            </div>
 
             {/* Delivery Date */}
             <div className="space-y-2">

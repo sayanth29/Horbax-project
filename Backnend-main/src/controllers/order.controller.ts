@@ -86,10 +86,12 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       items,
       total,
       deliveryDate,
+      orderTime,
       deliveryType,
       deliveryAddress,
       deliveryCharge,
       notes,
+      clearDue,
     } = req.body
 
     // Input validation
@@ -112,6 +114,22 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       await Customer.create({ name: customerName, phone })
     }
 
+    // If admin checked "Clear Due", zero out previous dues for this phone
+    if (clearDue) {
+      await Order.updateMany(
+        { phone, dueAmount: { $gt: 0 } },
+        { $set: { dueAmount: 0 } }
+      )
+    }
+
+    // Handle manual order time (e.g. "14:30")
+    let createdAt = new Date()
+    if (orderTime) {
+      const [hours, minutes] = orderTime.split(':')
+      createdAt.setHours(parseInt(hours, 10))
+      createdAt.setMinutes(parseInt(minutes, 10))
+    }
+
     const order = await Order.create({
       customerName,
       phone,
@@ -123,7 +141,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       deliveryCharge:  deliveryCharge  || 0,
       notes,
       status :'pending',
-      paymentMethod:'cash_pending' // by defult
+      paymentMethod:'cash_pending', // by defult
+      createdAt,
     })
 
     res.status(201).json(order)

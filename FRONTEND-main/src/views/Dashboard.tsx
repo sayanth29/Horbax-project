@@ -14,6 +14,7 @@ const statusConfig: Record<string, { color: string; dot: string; label: string }
   pending:   { color: 'bg-amber-100 text-amber-700',     dot: 'bg-amber-400',   label: 'Pending'   },
   ready:     { color: 'bg-sky-100 text-sky-700',         dot: 'bg-sky-400',     label: 'Ready'     },
   completed: { color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', label: 'Completed' },
+  cancelled: { color: 'bg-red-100 text-red-700',         dot: 'bg-red-400',     label: 'Cancelled' },
 }
 const paymentConfig: Record<string, { color: string; label: string }> = {
   cash_pending: { color: 'bg-orange-100 text-orange-700',   label: 'Cash Pending' },
