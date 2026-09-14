@@ -20,12 +20,13 @@ export interface IOrder extends Document {
   cashAmount:       number
   dueAmount:        number
   status:           'pending' | 'ready' | 'completed'
-  deliveryType:     'takeaway' | 'home_delivery'   // 👈 add here
-  deliveryAddress?: string                          // 👈 add here
-  deliveryCharge:   number                          // 👈 add here
+  deliveryType:     'takeaway' | 'home_delivery'
+  deliveryAddress?: string
+  deliveryCharge:   number
   deliveryDate?:    string
   notes?:           string
   completedAt?:     Date
+  createdAt:        Date
 }
 
 // Sub-schema for cloth items
@@ -87,6 +88,7 @@ orderSchema.pre('save', async function () {
 
 // ─── Indexes for fast queries ──────────────────────────────────────────────────
 orderSchema.index({ status: 1, createdAt: -1 })   // pending/ready/completed + date sort
+orderSchema.index({ status: 1, completedAt: -1 }) // collection queries (completed by date)
 orderSchema.index({ phone: 1 })                    // customer lookup by phone
 orderSchema.index({ createdAt: -1 })               // date-range queries (collection, dashboard)
 orderSchema.index({ dueAmount: 1 })                // due/credit filter

@@ -10,6 +10,46 @@ interface OrderData {
   dueAmount?: number
 }
 
+// IST offset in milliseconds (+5:30)
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+
+/**
+ * Get IST "start of day" and "end of day" as UTC Date objects.
+ * This ensures that "today" in IST maps correctly even when the
+ * server runs in UTC (e.g. Vercel).
+ */
+const getISTDayBounds = (date: Date = new Date()) => {
+  // Current UTC time + IST offset = IST clock time
+  const istNow = new Date(date.getTime() + IST_OFFSET_MS)
+
+  // Start of day in IST (00:00:00.000 IST → subtract offset to get UTC)
+  const startIST = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()))
+  const start = new Date(startIST.getTime() - IST_OFFSET_MS)
+
+  // End of day in IST (23:59:59.999 IST → subtract offset to get UTC)
+  const endIST = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 23, 59, 59, 999))
+  const end = new Date(endIST.getTime() - IST_OFFSET_MS)
+
+  return { start, end }
+}
+
+/**
+ * Parse a YYYY-MM-DD string as an IST date and return UTC bounds.
+ */
+const getISTDayBoundsFromString = (dateStr: string) => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+
+  // Start of day in IST → UTC
+  const startIST = new Date(Date.UTC(year, month - 1, day))
+  const start = new Date(startIST.getTime() - IST_OFFSET_MS)
+
+  // End of day in IST → UTC
+  const endIST = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
+  const end = new Date(endIST.getTime() - IST_OFFSET_MS)
+
+  return { start, end }
+}
+
 // Helper: calculate collection summary from a list of orders
 const calcSummary = (orders: OrderData[]) => {
   const completedOrders = orders.filter((o) => o.status === 'completed')
@@ -31,19 +71,41 @@ const calcSummary = (orders: OrderData[]) => {
   }
 }
 
+/**
+ * Fetch orders for a given date range using COLLECTION logic:
+ * - Completed orders → filter by completedAt (when money was collected)
+ * - Pending/ready orders → filter by createdAt (when order was placed)
+ *
+ * This ensures that an order placed yesterday but collected today
+ * shows in today's collection — because the money came in today.
+ */
+const fetchCollectionOrders = async (start: Date, end: Date) => {
+  const dateRange = { $gte: start, $lte: end }
+
+  // Two parallel queries for the two different date fields
+  const [completedOrders, pendingOrders] = await Promise.all([
+    // Completed orders: filter by completedAt (collection date)
+    Order.find({
+      status: 'completed',
+      completedAt: dateRange,
+    }).sort({ completedAt: -1 }).lean(),
+
+    // Pending/ready orders: filter by createdAt (order date)
+    Order.find({
+      status: { $in: ['pending', 'ready'] },
+      createdAt: dateRange,
+    }).sort({ createdAt: -1 }).lean(),
+  ])
+
+  return [...completedOrders, ...pendingOrders]
+}
+
 // GET /api/collection/today
-// Returns today's orders with a collection summary
+// Returns today's collection: completed orders collected today + pending orders created today
 export const getTodayCollection = async (req: Request, res: Response): Promise<void> => {
   try {
-    const start = new Date()
-    start.setHours(0, 0, 0, 0)
-
-    const end = new Date()
-    end.setHours(23, 59, 59, 999)
-
-    const orders = await Order.find({
-      createdAt: { $gte: start, $lte: end },
-    }).sort({ createdAt: -1 }).lean()
+    const { start, end } = getISTDayBounds()
+    const orders = await fetchCollectionOrders(start, end)
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
@@ -56,15 +118,8 @@ export const getTodayCollection = async (req: Request, res: Response): Promise<v
 export const getDateCollection = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date } = req.params
-    const start = new Date(date as string)
-    start.setHours(0, 0, 0, 0)
-
-    const end = new Date(date as string)
-    end.setHours(23, 59, 59, 999)
-
-    const orders = await Order.find({
-      createdAt: { $gte: start, $lte: end }
-    }).lean()
+    const { start, end } = getISTDayBoundsFromString(date as string)
+    const orders = await fetchCollectionOrders(start, end)
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
@@ -73,19 +128,24 @@ export const getDateCollection = async (req: Request, res: Response): Promise<vo
 }
 
 // GET /api/collection/month
-// Returns current month's orders with a collection summary
+// Returns current month's collection
 export const getMonthCollection = async (req: Request, res: Response): Promise<void> => {
   try {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    start.setHours(0, 0, 0, 0)
+    // Get current IST date
+    const istNow = new Date(Date.now() + IST_OFFSET_MS)
+    const year = istNow.getUTCFullYear()
+    const month = istNow.getUTCMonth()
 
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    end.setHours(23, 59, 59, 999)
+    // First day of month in IST → UTC
+    const startIST = new Date(Date.UTC(year, month, 1))
+    const start = new Date(startIST.getTime() - IST_OFFSET_MS)
 
-    const orders = await Order.find({
-      createdAt: { $gte: start, $lte: end },
-    }).sort({ createdAt: -1 }).lean()
+    // Last day of month in IST → UTC
+    const lastDay = new Date(Date.UTC(year, month + 1, 0))
+    const endIST = new Date(Date.UTC(year, month, lastDay.getUTCDate(), 23, 59, 59, 999))
+    const end = new Date(endIST.getTime() - IST_OFFSET_MS)
+
+    const orders = await fetchCollectionOrders(start, end)
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
@@ -103,7 +163,6 @@ export const getAllCollection = async (req: Request, res: Response): Promise<voi
   } catch (error) {
     res.status(500).json({ message: 'Server error' })
   }
-
 }
 
 // GET /api/collection/range?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -116,19 +175,13 @@ export const getRangeCollection = async (req: Request, res: Response): Promise<v
       return
     }
 
-    const start = new Date(from as string)
-    start.setHours(0, 0, 0, 0)
+    const { start } = getISTDayBoundsFromString(from as string)
+    const { end } = getISTDayBoundsFromString(to as string)
 
-    const end = new Date(to as string)
-    end.setHours(23, 59, 59, 999)
-
-    const orders = await Order.find({
-      createdAt: { $gte: start, $lte: end }
-    }).lean()
+    const orders = await fetchCollectionOrders(start, end)
 
     res.json({ summary: calcSummary(orders), orders })
   } catch (error) {
     res.status(500).json({ message: 'Server error' })
   }
 }
-
