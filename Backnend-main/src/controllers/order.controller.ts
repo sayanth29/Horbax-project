@@ -52,7 +52,7 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
 // GET /api/orders/pending
 export const getPendingOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const orders = await Order.find({ status: { $in: ['pending', 'ready'] } }).sort({ createdAt: -1 }).lean()
+    const orders = await Order.find({ status: { $in: ['pending', 'ready'] } }).sort({ orderId: -1 }).lean()
     res.json(orders)
   } catch (error) {
     res.status(500).json({ message: 'Server error' })
