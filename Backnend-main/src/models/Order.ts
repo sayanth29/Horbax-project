@@ -24,6 +24,7 @@ export interface IOrder extends Document {
   deliveryAddress?: string
   deliveryCharge:   number
   deliveryDate?:    string
+  orderTime?:       string
   notes?:           string
   completedAt?:     Date
   createdAt:        Date
@@ -66,6 +67,7 @@ const orderSchema = new Schema<IOrder>(
     deliveryAddress: { type: String },               // 👈 add here
     deliveryCharge:  { type: Number, default: 0 },   // 👈 add here
     deliveryDate: { type: String },
+    orderTime:    { type: String },
     notes:        { type: String },
     completedAt:  { type: Date },
   },

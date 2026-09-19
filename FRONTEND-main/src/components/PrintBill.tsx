@@ -120,7 +120,9 @@ const PrintBill = ({ order, onClose }: PrintBillProps) => {
                   {new Date(order.createdAt).toLocaleDateString('en-IN')}
                 </span>
                 <span style={{ fontSize: '10px', marginLeft: '2mm' }}>
-                  {new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  {order.orderTime
+                    ? order.orderTime
+                    : new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                 </span>
               </div>
             </div>

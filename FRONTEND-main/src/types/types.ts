@@ -31,6 +31,7 @@ export interface Order {
   deliveryAddress?: string                         // 👈 add this
   deliveryCharge:  number                          // 👈 add this
   deliveryDate?:   string
+  orderTime?:      string
   notes?:          string
   completedAt?:    string
   createdAt:       string

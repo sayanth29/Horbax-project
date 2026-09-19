@@ -149,13 +149,22 @@ const NewOrder = () => {
     try {
       setLoading(true)
       const finalPhone = phone.trim() || `NO_PHONE_${Date.now()}`
+      // Convert 24h time input (e.g. "14:30") to 12h string (e.g. "02:30 PM")
+        const formatTime12h = (t: string) => {
+          if (!t) return undefined
+          const [h, m] = t.split(':').map(Number)
+          const suffix = h >= 12 ? 'PM' : 'AM'
+          const hour12 = h % 12 || 12
+          return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${suffix}`
+        }
+
       await api.post('/orders', {
         customerName: name,
         phone: finalPhone,
         items: validRows.map(r => ({ qty: r.qty, cloth: r.cloth, wash: r.wash, price: getRowTotal(r) })),
         total,
         deliveryDate,
-        orderTime: orderTime || undefined,
+        orderTime: formatTime12h(orderTime),
         deliveryType,
         deliveryAddress,
         deliveryCharge,
@@ -399,6 +408,7 @@ const NewOrder = () => {
                   className="w-full pl-12 pr-4 py-3 bg-surface-container-low rounded-lg border border-transparent focus:border-primary/40 text-sm font-bold text-slate-700 outline-none transition-all"
                 />
               </div>
+              <p className="text-[10px] text-outline">Optional — leave empty to use current time</p>
             </div>
 
             {/* Delivery Date */}
